@@ -2,109 +2,102 @@
 package controllers
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/labstack/echo/v4"
+	postProto "github.com/tom-blog-app/blog-proto/post"
+	"github.com/tom-blog-app/gataway/api/services"
+	"log"
 	"net/http"
 )
 
-type Post struct {
-	Id    string `json:"id"`
-	Title string `json:"title"`
-	Body  string `json:"body"`
-}
-type PostCRUD interface {
-	CreatePost(post Post) (Post, error)
-	DeletePost(id string) (bool, error)
-	GetAllPosts() ([]Post, error)
-	UpdatePostById(id string, post Post) (Post, error)
-	//DeletePostById(id string) (bool, error)
+//type Post struct {
+//	Id    string `json:"id"`
+//	Title string `json:"title"`
+//	Body  string `json:"body"`
+//}
+
+func SetupPostController(e *echo.Echo) {
+	controller := &PostController{
+		e,
+		services.NewPostService(),
+	}
+	fmt.Println("Setup Post controller...")
+	postGroup := e.Group("/posts")
+	postGroup.POST("", controller.createPost)
+	postGroup.GET("/:id", controller.getPostById)
+	postGroup.PUT("", controller.updatePostById)
+	postGroup.DELETE("/:id", controller.deletePostById)
+	postGroup.GET("", controller.getAllPosts)
+	postGroup.GET("/author/:authorId", controller.getAllPostsByAuthor)
 }
 
 type PostController struct {
 	*echo.Echo
+	postService services.PostService
 }
 
 func (pc *PostController) createPost(c echo.Context) error {
-	fmt.Println("createPost")
-	//var post Post
-	//if err := c.Bind(&post); err != nil {
-	//	return err
-	//}
-	//newPost, err := pc.Service.CreatePost(post)
-	//if err != nil {
-	//	return err
-	//}
-	return c.JSON(http.StatusCreated, &Post{
-		Id:    "1",
-		Title: "test1",
-		Body:  "test1",
-	})
+	post := new(postProto.PostRequest)
+	if err := json.NewDecoder(c.Request().Body).Decode(post); err != nil {
+		return c.JSON(http.StatusBadRequest, err.Error())
+	}
+
+	log.Println("CreatePost request received", post)
+	newPost, err := pc.postService.CreatePost(post)
+	if err != nil {
+		log.Println("Error1: ", err)
+		return c.JSON(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusCreated, newPost)
 }
 
 func (pc *PostController) getPostById(c echo.Context) error {
 	id := c.Param("id")
-	fmt.Println("GetPostById id", id)
-	//post, err := pc.Service.GetPostById(id)
-	//if err != nil {
-	//	return err
-	//}
-	return c.JSON(http.StatusOK, &Post{
-		Id:    id,
-		Title: "test1",
-		Body:  "test1",
-	})
+	post, err := pc.postService.GetPost(id)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, err.Error())
+	}
+	return c.JSON(http.StatusOK, post)
 }
 
 func (pc *PostController) updatePostById(c echo.Context) error {
 	id := c.Param("id")
-	//var post Post
-	//if err := c.Bind(&post); err != nil {
-	//	return err
-	//}
-	//updatedPost, err := pc.Service.UpdatePostById(id, post)
-	//if err != nil {
-	//	return err
-	//}
-	return c.JSON(http.StatusOK, &Post{
-		Id:    id,
-		Title: "test1",
-		Body:  "test1",
-	})
+	var post postProto.UpdatePostRequest
+	if err := c.Bind(&post); err != nil {
+		return err
+	}
+	post.Id = id
+	updatedPost, err := pc.postService.UpdatePostById(&post)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, err.Error())
+	}
+	return c.JSON(http.StatusOK, updatedPost)
 }
 
 func (pc *PostController) deletePostById(c echo.Context) error {
 	id := c.Param("id")
-	//_, err := pc.Service.DeletePostById(id)
-	//if err != nil {
-	//	return err
-	//}
-	return c.JSON(http.StatusOK, id)
+	success, err := pc.postService.DeletePost(id)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, err.Error())
+	}
+	return c.JSON(http.StatusOK, map[string]bool{"success": success})
 }
 
 func (pc *PostController) getAllPosts(c echo.Context) error {
-	//posts, err := pc.Service.getAllPosts()
-	//if err != nil {
-	//	return err
-	//}
-
-	posts := []Post{{
-		Id:    "1",
-		Title: "test1",
-		Body:  "test1",
-	}}
+	posts, err := pc.postService.GetAllPosts()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, err.Error())
+	}
 	return c.JSON(http.StatusOK, posts)
 }
 
-func SetupPostController(e *echo.Echo) {
-	controller := &PostController{e}
-	fmt.Println("setup post controller")
-	e.GET("/help", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Hello, World!2")
-	})
-	postGroup := e.Group("/posts")
-	postGroup.POST("/", controller.createPost)
-	postGroup.GET("/:id", controller.getPostById)
-	postGroup.PUT("/:id", controller.updatePostById)
-	postGroup.DELETE("/:id", controller.deletePostById)
-	postGroup.GET("", controller.getAllPosts)
+func (pc *PostController) getAllPostsByAuthor(c echo.Context) error {
+	authorId := c.Param("authorId")
+	posts, err := pc.postService.GetAllPostsByAuthorId(authorId)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, err.Error())
+	}
+	return c.JSON(http.StatusOK, posts)
 }

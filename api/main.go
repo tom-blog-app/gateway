@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/tom-blog-app/gataway/api/controllers"
@@ -19,7 +18,6 @@ func main() {
 	//e := echo.New()
 	app := &EchoApp{echo.New()}
 
-	//app.Use(middleware.Logger())
 	app.Use(middleware.Recover())
 	app.Use(middleware.CORS())
 
@@ -27,8 +25,10 @@ func main() {
 	app.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Hello, World!")
 	})
+	app.GET("/help", func(c echo.Context) error {
+		return c.String(http.StatusOK, "Hello, World!2")
+	})
 	app.GET("/log", func(c echo.Context) error {
-		fmt.Println("log")
 		LogViaGrpc("test", "test2")
 		return c.String(http.StatusOK, "Hello, World!")
 	})
@@ -41,4 +41,5 @@ func main() {
 func (e *EchoApp) setupControllers() {
 	//userController := &controllers.PostController{Echo: e.Echo}
 	controllers.SetupPostController(e.Echo)
+	controllers.SetupHealthController(e.Echo)
 }
