@@ -26,7 +26,7 @@ func SetupPostController(e *echo.Echo) {
 	postGroup := e.Group("/posts")
 	postGroup.POST("", controller.createPost)
 	postGroup.GET("/:id", controller.getPostById)
-	postGroup.PUT("", controller.updatePostById)
+	postGroup.PUT("/:id", controller.updatePostById)
 	postGroup.DELETE("/:id", controller.deletePostById)
 	postGroup.GET("", controller.getAllPosts)
 	postGroup.GET("/author/:authorId", controller.getAllPostsByAuthor)
@@ -64,10 +64,13 @@ func (pc *PostController) getPostById(c echo.Context) error {
 
 func (pc *PostController) updatePostById(c echo.Context) error {
 	id := c.Param("id")
+
 	var post postProto.UpdatePostRequest
+
 	if err := c.Bind(&post); err != nil {
 		return err
 	}
+
 	post.Id = id
 	updatedPost, err := pc.postService.UpdatePostById(&post)
 	if err != nil {
